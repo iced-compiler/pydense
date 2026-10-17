@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pydense"
+version = "0.2.0"
+description = "Bijective, zero-whitespace Python AST compression language (.pyd) and MCP server for AI coding agents."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "PyDense Contributors" }
+]
+keywords = ["ai", "llm", "mcp", "compiler", "ast", "token-compression", "python", "agents"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Compilers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = []
+
+[project.optional-dependencies]
+mcp = [
+    "mcp>=1.2.0",
+]
+bench = [
+    "tiktoken>=0.7.0",
+]
+dev = [
+    "mcp>=1.2.0",
+    "tiktoken>=0.7.0",
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[project.scripts]
+pydense = "pydense_cli:main"
+pydense-mcp = "mcp_server:main"
+
+[tool.setuptools]
+py-modules = ["pydense", "mcp_server", "pydense_cli"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

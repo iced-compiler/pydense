@@ -1,0 +1,143 @@
+// PyDense (.pyd) Formal Grammar Specification v0.1
+// Target: 1-to-1 Bijection with Python 3.12+ ast.AST
+
+start: stmt_list
+
+// Statements are semicolon-delimited; trailing semicolon before '}' is optional
+stmt_list: stmt (";" stmt)* ";"?
+
+?stmt: class_def
+     | func_def
+     | if_stmt
+     | for_stmt
+     | while_stmt
+     | try_stmt
+     | with_stmt
+     | import_stmt
+     | return_stmt
+     | yield_stmt
+     | assign_stmt
+     | aug_assign_stmt
+     | flow_Ctrl
+     | expr_stmt
+
+block: "{" stmt_list? "}"
+
+// --- Declarations ---
+// @c Name(Base){...} -> class Name(Base): ...
+class_def: "@c" NAME ("(" arg_list? ")")? block
+
+// @f name(a,b=1){...} -> def name(a, b=1): ... (auto-injects 'self' inside @c)
+// @af -> async def | @sf -> @staticmethod def | @i -> def __init__(self, ...):
+func_def: FUNC_KW NAME? "(" param_list? ")" block
+FUNC_KW: "@f" | "@af" | "@sf" | "@i"
+
+param_list: param ("," param)*
+param: NAME ("=" expr)? | "*" NAME | "**" NAME
+
+// --- Control Flow ---
+// ?cond{...}:?cond2{...}:{...} -> if / elif / else
+if_stmt: "?" expr block (":?" expr block)* (":" block)?
+
+// ~x:iter{...} -> for x in iter: ...
+for_stmt: "~" target_list ":" expr block
+
+// ~?cond{...} -> while cond: ...
+while_stmt: "~?" expr block
+
+// !{...}!Err:e{...}!*{...} -> try / except Err as e / finally
+try_stmt: "!" block ("!" expr? (":" NAME)? block)+ ("!*" block)?
+
+// @w expr:v{...} -> with expr as v: ...
+with_stmt: "@w" expr (":" target)? block
+
+// --- Imports & Returns ---
+// >os | >numpy=np | >pathlib:Path
+import_stmt: ">" DOTTED_NAME ("=" NAME)?          -> import_direct
+           | ">" DOTTED_NAME ":" import_targets   -> import_from
+import_targets: NAME ("=" NAME)? ("," NAME ("=" NAME)?)*
+
+return_stmt: "^" expr?
+yield_stmt: "^>" expr
+flow_ctrl: "^!" -> break_stmt | "^~" -> continue_stmt | "^@" expr -> raise_stmt
+
+// --- Assignments ---
+assign_stmt: target_list "=" expr
+aug_assign_stmt: target AUG_OP expr
+AUG_OP: "+=" | "-=" | "*=" | "/=" | "//=" | "%=" | "**=" | "&=" | "|="
+
+target_list: target ("," target)*
+?target: NAME | self_attr | getattr | subscription
+
+// --- Expressions & Operators (Standard Python Precedence) ---
+expr_stmt: expr
+?expr: lambda_def | ternary | logic_or
+
+// \a,b:a+b -> lambda a, b: a + b
+lambda_def: "\\" param_list? ":" expr
+
+// cond?true_val:false_val -> true_val if cond else false_val
+ternary: logic_or "??" expr ":" expr
+
+// Punctuation boolean ops avoid mandatory whitespace around 'and'/'or'/'not'
+?logic_or: logic_and ("||" logic_and)*
+?logic_and: logic_not ("&&" logic_not)*
+?logic_not: "!" logic_not -> not_op | comparison
+
+?comparison: bitwise_or (COMP_OP bitwise_or)*
+COMP_OP: "==" | "!=" | "<=" | ">=" | "<" | ">" | "@in" | "!@in" | "@is"
+
+?bitwise_or: bitwise_xor ("|" bitwise_xor)*
+?bitwise_xor: bitwise_and ("^|" bitwise_and)*
+?bitwise_and: shift ("&" shift)*
+?shift: arith (SHIFT_OP arith)*
+SHIFT_OP: "<<" | ">>"
+
+?arith: term (("+" | "-") term)*
+?term: factor (("*" | "/" | "//" | "%" | "@") factor)*
+?factor: ("+" | "-" | "~") factor | power
+?power: await_expr ("**" factor)?
+?await_expr: "@aw"? atom_expr
+
+?atom_expr: atom
+          | atom_expr "(" arg_list? ")"        -> call
+          | atom_expr "[" slice_list "]"       -> subscription
+          | atom_expr "." NAME                 -> getattr
+
+?atom: NAME
+     | NUMBER
+     | STRING
+     | self_attr
+     | pos_arg
+     | macro_ref
+     | builtin_ref
+     | list_expr
+     | dict_or_set
+     | "(" expr ")"
+
+// --- PyDense Shorthands ---
+self_attr: "." NAME                            // .x -> self.x
+pos_arg: "$" INT                               // $0, $1 -> 1st, 2nd function arg
+macro_ref: "#" NAME                            // #np -> numpy, #pd -> pandas, #T -> True
+builtin_ref: "%" NAME                          // %l -> len, %r -> range, %p -> print
+
+// --- Comprehensions & Literals ---
+// [x*2~x:items?x>0] -> [x*2 for x in items if x > 0]
+list_expr: "[" (expr ("~" target_list ":" expr ("?" expr)?)+ | expr_list?) "]"
+dict_or_set: "{" (key_val ("~" target_list ":" expr ("?" expr)?)+ | kv_list | expr_list)? "}"
+
+key_val: expr ":" expr
+kv_list: key_val ("," key_val)*
+expr_list: expr ("," expr)*
+arg_list: arg ("," arg)*
+arg: (NAME "=")? expr | "*" expr | "**" expr
+slice_list: slice ("," slice)*
+?slice: expr? ":" expr? (":" expr?)? | expr
+
+DOTTED_NAME: NAME ("." NAME)*
+%import common.CNAME -> NAME
+%import common.NUMBER
+%import common.ESCAPED_STRING -> STRING
+%import common.INT
+%ignore /[\t \f\r\n]+/  // All whitespace is ignored; only required between bare adjacent tokens
+%ignore /\/\/[^\n]*/    // Single-line comments if ever needed
