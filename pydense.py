@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyDense (.pyd) Compiler, Decompiler & Execution Engine v0.2
+PyDense (.pyd) Compiler, Decompiler & Execution Engine v0.2.1
 Supports arbitrary decorators, optional type annotations, *args/**kwargs unpacking,
 and full async/await AST bijection.
 """
@@ -61,6 +61,19 @@ BUILTIN_MACROS: Dict[str, str] = {
     "%o": "open",
 }
 REV_BUILTIN_MACROS: Dict[str, str] = {v: k for k, v in BUILTIN_MACROS.items()}
+
+BLOCK_AST_TYPES = (
+    ast.ClassDef,
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.If,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.Try,
+    ast.With,
+    ast.AsyncWith,
+)
 
 
 # ============================================================================
@@ -232,12 +245,12 @@ class PyDenseCompiler:
         depth = 0
         for i in range(start, len(tokens)):
             v = tokens[i].val
+            if depth == 0 and v in target_vals:
+                return i
             if v in ("(", "[", "{"):
                 depth += 1
             elif v in (")", "]", "}"):
                 depth -= 1
-            elif depth == 0 and v in target_vals:
-                return i
         return -1
 
     # --- Decorator Prefix Extractor ---
@@ -253,7 +266,6 @@ class PyDenseCompiler:
 
         while idx < n:
             tok = tokens[idx]
-            # Bracketed decorator list: @[dec1, dec2(a)]
             if tok.val == "@" and idx + 1 < n and tokens[idx + 1].val == "[":
                 close_b = self._find_matching_bracket(tokens, idx + 1, "[", "]")
                 inner = tokens[idx + 2 : close_b]
@@ -263,7 +275,6 @@ class PyDenseCompiler:
                 idx = close_b + 1
                 continue
 
-            # Single stacked decorator: @dec_expr followed by another @ or declaration keyword
             if tok.val == "@":
                 depth = 0
                 end_idx = -1
@@ -292,7 +303,6 @@ class PyDenseCompiler:
     def _parse_stmt(self, tokens: List[Token], indent: int) -> List[str]:
         pad = "    " * indent
 
-        # Extract any leading decorators (@dec or @[dec1,dec2])
         decorators: List[str] = []
         if tokens[0].val == "@":
             decorators, tokens = self._extract_decorators(tokens)
@@ -306,7 +316,7 @@ class PyDenseCompiler:
             idx = 2
             bases_str = ""
             if idx < len(tokens) and tokens[idx].val == "(":
-                close_p = self._find_top_level(tokens, {")"}, idx)
+                close_p = self._find_matching_bracket(tokens, idx, "(", ")")
                 inner_bases = tokens[idx + 1 : close_p]
                 if inner_bases:
                     bases_str = "(" + self._parse_bracket_inner(inner_bases, "(") + ")"
@@ -326,7 +336,7 @@ class PyDenseCompiler:
                 fn_name = tokens[idx].val
                 idx += 1
 
-            close_p = self._find_top_level(tokens, {")"}, idx)
+            close_p = self._find_matching_bracket(tokens, idx, "(", ")")
             param_toks = tokens[idx + 1 : close_p]
             param_names, rendered_params = self._parse_params(param_toks)
 
@@ -334,7 +344,6 @@ class PyDenseCompiler:
             inject_self = self.class_depth > 0 and first != "@sf" and not has_staticmethod_dec
             full_params = (["self"] + rendered_params) if inject_self else rendered_params
 
-            # Check for optional return type annotation: ->Type before '{'
             brace_idx = self._find_top_level(tokens, {"{"}, close_p + 1)
             ret_suffix = ""
             if close_p + 1 < brace_idx and tokens[close_p + 1].val == "->":
@@ -478,7 +487,6 @@ class PyDenseCompiler:
         qq_idx = self._find_top_level(tokens, {"??"})
         assign_idx = self._find_top_level(tokens, {"="} | AUG_ASSIGN_OPS)
 
-        # Check for AnnAssign: target:Type=val or target:Type (where ':' is not part of ternary or lambda)
         if (
             colon_idx != -1
             and first != "\\"
@@ -497,7 +505,6 @@ class PyDenseCompiler:
         if assign_idx != -1:
             op = tokens[assign_idx].val
             if op == "=":
-                # Support chained assignments: a = b = 0
                 parts = self._split_top_level(tokens, "=")
                 return [f"{pad}{' = '.join(self._parse_expr(p) for p in parts)}"]
             lhs = self._parse_expr(tokens[:assign_idx])
@@ -523,10 +530,6 @@ class PyDenseCompiler:
         return ", ".join(parts)
 
     def _parse_params(self, tokens: List[Token]) -> Tuple[List[str], List[str]]:
-        """
-        Parses parameter list supporting type annotations, defaults, *args, **kwargs, and bare '*'.
-        Returns (positional_param_names_for_$0_$1, rendered_python_param_strings).
-        """
         if not tokens:
             return [], []
         groups = self._split_top_level(tokens, ",")
@@ -555,7 +558,6 @@ class PyDenseCompiler:
                 rendered.append("*")
                 continue
 
-            # Track positional parameter names for $0, $1 binding (excluding *args, **kwargs, kw-only)
             if not p_name.startswith("*") and not after_star:
                 param_names.append(p_name)
             elif p_name.startswith("*") and not p_name.startswith("**"):
@@ -620,7 +622,6 @@ class PyDenseCompiler:
             t = tokens[i]
             prev = tokens[i - 1] if i > 0 else None
 
-            # Handle brackets & comprehensions: [...], {...}, (...)
             if t.val in ("[", "{", "("):
                 open_b = t.val
                 close_b = "]" if open_b == "[" else ("}" if open_b == "{" else ")")
@@ -631,7 +632,6 @@ class PyDenseCompiler:
                 i = close_idx + 1
                 continue
 
-            # Implicit self attribute: .attr -> self.attr
             if t.val == "." and i + 1 < n and tokens[i + 1].kind == "IDENT":
                 is_attr_access = prev is not None and (
                     prev.kind in EXPR_END_KINDS or prev.val in EXPR_END_VALS
@@ -641,17 +641,17 @@ class PyDenseCompiler:
                     i += 2
                     continue
 
-            # Positional parameter shorthand: $0, $1
             if t.kind == "POS_ARG":
                 arg_idx = int(t.val[1:])
-                if self.func_param_stack and arg_idx < len(self.func_param_stack[-1]):
-                    out.append(self.func_param_stack[-1][arg_idx])
-                else:
-                    out.append(f"_arg{arg_idx}")
+                resolved = None
+                for frame in reversed(self.func_param_stack):
+                    if arg_idx < len(frame):
+                        resolved = frame[arg_idx]
+                        break
+                out.append(resolved if resolved is not None else f"_arg{arg_idx}")
                 i += 1
                 continue
 
-            # Macro references: #T, #np, #dc, etc.
             if t.kind == "MACRO":
                 if t.val in CONST_MACROS:
                     out.append(CONST_MACROS[t.val])
@@ -663,7 +663,6 @@ class PyDenseCompiler:
                 i += 1
                 continue
 
-            # Builtin references: %l, %p, etc.
             if t.kind == "BUILTIN":
                 if t.val in BUILTIN_MACROS:
                     out.append(BUILTIN_MACROS[t.val])
@@ -672,7 +671,6 @@ class PyDenseCompiler:
                 i += 1
                 continue
 
-            # Operators & Keywords
             if t.val == "&&":
                 out.append(" and ")
             elif t.val == "||":
@@ -716,7 +714,6 @@ class PyDenseCompiler:
         if not inner:
             return ""
 
-        # Check if this bracket contains a comprehension: top-level '~' or '~@' followed by ':'
         comp_indices: List[Tuple[int, bool]] = []
         depth = 0
         for idx, tok in enumerate(inner):
@@ -763,7 +760,6 @@ class PyDenseCompiler:
 
             return f"{elt_str} {' '.join(clauses)}"
 
-        # Dict or Set literal (including **kwargs dict unpacking)
         if open_b == "{":
             items = self._split_top_level(inner, ",")
             rendered_items: List[str] = []
@@ -779,7 +775,6 @@ class PyDenseCompiler:
                     rendered_items.append(self._parse_expr(item))
             return ", ".join(rendered_items)
 
-        # List literal or subscript/slice (including *args unpacking)
         if open_b == "[":
             items = self._split_top_level(inner, ",")
             rendered_items = []
@@ -793,7 +788,6 @@ class PyDenseCompiler:
                     rendered_items.append(self._parse_expr(item))
             return ", ".join(rendered_items)
 
-        # Parentheses (...) — function call args, tuples (including 1-tuple `(x,)`), or grouping
         items = self._split_top_level(inner, ",")
         if len(items) == 1:
             return self._parse_expr(items[0])
@@ -858,31 +852,29 @@ class PyDenseDecompiler(ast.NodeVisitor):
         tree = ast.parse(py_code)
         return self.visit_Module(tree)
 
-    def _visit_block(self, stmts: List[ast.stmt]) -> str:
-        parts = [self.visit(s) for s in stmts]
-        parts = [p for p in parts if p]
+    def _join_stmts(self, stmts: List[ast.stmt]) -> str:
+        rendered: List[Tuple[ast.stmt, str]] = []
+        for s in stmts:
+            p = self.visit(s)
+            if p:
+                rendered.append((s, p))
         out = ""
-        for idx, p in enumerate(parts):
-            if idx > 0 and not out.endswith("}"):
+        for idx, (s, p) in enumerate(rendered):
+            if idx > 0 and not isinstance(rendered[idx - 1][0], BLOCK_AST_TYPES):
                 out += ";"
             out += p
-        return "{" + out + "}"
+        return out
+
+    def _visit_block(self, stmts: List[ast.stmt]) -> str:
+        return "{" + self._join_stmts(stmts) + "}"
 
     def _visit_bare_tuple_or_expr(self, node: ast.AST) -> str:
-        """Emits tuple elements without outer parentheses for assignment/loop/return targets."""
         if isinstance(node, ast.Tuple):
             return ",".join(self.visit(e) for e in node.elts)
         return self.visit(node)
 
     def visit_Module(self, node: ast.Module) -> str:
-        parts = [self.visit(s) for s in node.body]
-        parts = [p for p in parts if p]
-        out = ""
-        for idx, p in enumerate(parts):
-            if idx > 0 and not out.endswith("}"):
-                out += ";"
-            out += p
-        return out
+        return self._join_stmts(node.body)
 
     def visit_Import(self, node: ast.Import) -> str:
         kept: List[str] = []
@@ -1314,7 +1306,7 @@ def merge_configs(base: dict[str, int], *overrides: dict[str, int], scale: int =
         pyd_unpack + ";r=merge_configs({'a':1,'b':2},{'b':20,'c':30},scale=2,d=40)"
     )
     print(f"Unpacking Execution Result -> {ns_u['r']}")
-    assert ns_u["r"] == (999, [2, 40, 60, 80], {"a": 1, "b": 20, "c": 30, "d": 40})
+    assert ns_u["r"] == (999, [2, 40, 80, 60], {"a": 1, "b": 20, "c": 30, "d": 40})
 
     print("\n" + "=" * 74)
     print("TEST 3: Full Async Suite (@af, @aw, ~@ async for, @wa async with)")
@@ -1322,7 +1314,7 @@ def merge_configs(base: dict[str, int], *overrides: dict[str, int], scale: int =
     pyd_async = (
         "@c AsyncStream{@i(n:int){.n=$0}@af __aenter__(){^self}@af __aexit__(*a){^#F}"
         "@af gen(){~i:%r(.n){@aw #as.sleep(0);^>i*10}}};"
-        "@af collect(limit:int)->list[int]{out:list[int]= [];"
+        "@af collect(limit:int)->list[int]{out:list[int]=[];"
         "@wa AsyncStream($0):st{~@v:st.gen(){out.append(v)}};^out};"
         "async_res=#as.run(collect(4))"
     )
