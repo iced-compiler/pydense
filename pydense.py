@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyDense (.pyd) Compiler, Decompiler & Execution Engine v0.2.1
+PyDense (.pyd) Compiler, Decompiler & Execution Engine v0.2.2
 Supports arbitrary decorators, optional type annotations, *args/**kwargs unpacking,
 and full async/await AST bijection.
 """
@@ -60,7 +60,12 @@ BUILTIN_MACROS: Dict[str, str] = {
     "%rd": "round",
     "%o": "open",
 }
-REV_BUILTIN_MACROS: Dict[str, str] = {v: k for k, v in BUILTIN_MACROS.items()}
+
+# Only replace builtins in the decompiler when it saves or matches BPE tokens
+REV_BUILTIN_MACROS: Dict[str, str] = {
+    "enumerate": "%e",
+    "isinstance": "%i",
+}
 
 BLOCK_AST_TYPES = (
     ast.ClassDef,
@@ -88,13 +93,14 @@ class Token:
 
 
 TOKEN_SPEC = [
-    ("COMMENT", r"//[^\n]*"),
+    # Require whitespace (or EOL) after '//' so floor division 'x//2' is never eaten as a comment
+    ("COMMENT", r"//(?:\s[^\n]*|$)"),
     ("WS", r"[\t \f\r\n]+"),
     ("STRING", r"(?:[fFrRbBuU]{1,2})?(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"),
     ("NUMBER", r"\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"),
     (
         "MULTI",
-        r"!@in|!@is|@in|@is|@aw|@wa|@af|@sf|@c|@f|@i|@w|"
+        r"(?:!@in|!@is|@in|@is|@aw|@wa|@af|@sf|@c|@f|@i|@w)\b|"
         r"\^>|\^!|\^~|\^@|:\?|~\?|~@|!\*|\?\?|->|\.\.\.|"
         r"&&|\|\||//=|\*\*=|\+=|-=|\*=|/=|%=|&=|\|=|\^\||==|!=|<=|>=|<<|>>|//|\*\*",
     ),
@@ -169,6 +175,12 @@ class PyDenseCompiler:
         ast.fix_missing_locations(tree)
         return tree
 
+    def _resolve_pos_arg(self, arg_idx: int) -> str:
+        for frame in reversed(self.func_param_stack):
+            if arg_idx < len(frame):
+                return frame[arg_idx]
+        return f"_arg{arg_idx}"
+
     # --- Structural Block & Statement Splitting ---
 
     def _parse_stmt_list(self, tokens: List[Token], indent: int) -> List[str]:
@@ -221,7 +233,6 @@ class PyDenseCompiler:
         return stmts
 
     def _is_block_stmt(self, stmt_tokens: List[Token]) -> bool:
-        """Returns True if stmt_tokens represents a control/declaration block rather than a dict assignment."""
         if not stmt_tokens:
             return False
         if stmt_tokens[0].val in BLOCK_KEYWORDS or stmt_tokens[0].val == "@":
@@ -256,10 +267,6 @@ class PyDenseCompiler:
     # --- Decorator Prefix Extractor ---
 
     def _extract_decorators(self, tokens: List[Token]) -> Tuple[List[str], List[Token]]:
-        """
-        Extracts leading @dec or @[dec1,dec2] chains before @c, @f, @af, @sf, @i.
-        Returns (rendered_decorator_lines, remaining_tokens).
-        """
         decorators: List[str] = []
         idx = 0
         n = len(tokens)
@@ -632,6 +639,23 @@ class PyDenseCompiler:
                 i = close_idx + 1
                 continue
 
+            # Expand $0, $1 and {.attr inside f-strings
+            if t.kind == "STRING":
+                quote_pos = next(idx for idx, ch in enumerate(t.val) if ch in ('"', "'"))
+                prefix = t.val[:quote_pos].lower()
+                s_val = t.val
+                if "f" in prefix:
+                    s_val = re.sub(
+                        r"\$(\d+)",
+                        lambda m: self._resolve_pos_arg(int(m.group(1))),
+                        s_val,
+                    )
+                    if self.class_depth > 0:
+                        s_val = re.sub(r"(\{\s*)\.([A-Za-z_]\w*)", r"\1self.\2", s_val)
+                out.append(s_val)
+                i += 1
+                continue
+
             if t.val == "." and i + 1 < n and tokens[i + 1].kind == "IDENT":
                 is_attr_access = prev is not None and (
                     prev.kind in EXPR_END_KINDS or prev.val in EXPR_END_VALS
@@ -642,13 +666,7 @@ class PyDenseCompiler:
                     continue
 
             if t.kind == "POS_ARG":
-                arg_idx = int(t.val[1:])
-                resolved = None
-                for frame in reversed(self.func_param_stack):
-                    if arg_idx < len(frame):
-                        resolved = frame[arg_idx]
-                        break
-                out.append(resolved if resolved is not None else f"_arg{arg_idx}")
+                out.append(self._resolve_pos_arg(int(t.val[1:])))
                 i += 1
                 continue
 
@@ -781,7 +799,7 @@ class PyDenseCompiler:
             for item in items:
                 if not item:
                     continue
-                if self._find_top_level(item, {":"}) != -1:
+                if self._find_top_level(item, {":"}) != -1 and self._find_top_level(item, {"??"}) == -1:
                     parts = self._split_top_level(item, ":")
                     rendered_items.append(":".join(self._parse_expr(p) for p in parts))
                 else:
