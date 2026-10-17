@@ -51,3 +51,26 @@ class EWMA:
         else:
             self.state = self.alpha * val + (1.0 - self.alpha) * self.state
         return self.state
+```
+PyDense:
+```python
+@c EWMA{@i(s=20){.a=2.0/($0+1.0);.st=#N}@f update(v){?.st@is#N{.st=$0}:{.st=.a*$0+(1.0-.a)*.st};^.st}}
+```
+Ex 2: Comprehensions, Error Handling & File I/O
+Python:
+```python
+import json
+from pathlib import Path
+def load_valid(path_str, min_score=0.5):
+    try:
+        with open(Path(path_str)) as f:
+            data = json.load(f)
+        return {k: v for k, v in data.items() if v >= min_score and v is not None}
+    except Exception as e:
+        print(f"Err: {e}")
+        return {}
+```
+PyDense:
+```python
+@f load_valid(p,ms=0.5){!{@w %o(#pl($0)):f{d=#js.load(f)};^{k:v~k,v:d.items()?v>=$1&&v!@is#N}}!Exception:e{%p(f"Err: {e}");^{}}}
+```
