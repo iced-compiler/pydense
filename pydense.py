@@ -504,7 +504,7 @@ class PyDenseCompiler:
 
         if assign_idx != -1:
             op = tokens[assign_idx].val
-            if op == "=":
+            if op == "=" and not any(t.val == "\\" for t in tokens[assign_idx + 1 :]):
                 parts = self._split_top_level(tokens, "=")
                 return [f"{pad}{' = '.join(self._parse_expr(p) for p in parts)}"]
             lhs = self._parse_expr(tokens[:assign_idx])
