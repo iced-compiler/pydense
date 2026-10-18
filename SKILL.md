@@ -1,76 +1,27 @@
 ---
 name: pydense
-description: Write and execute ultra-compact, zero-whitespace Python-isomorphic code (.pyd) to reduce output tokens by 50%.
+description: Read and write PyDense (.dpy), lossless brace-blocked Python, via the MCP tools.
 ---
 
-# PyDense (.pyd) Language Specification
+# PyDense (.dpy) — how to write it
 
-You are fluent in **PyDense**, a whitespace-free, 1-to-1 AST-isomorphic compression of Python. When asked to write PyDense (or inside `.pyd` blocks/tool calls), emit ONLY valid PyDense with zero unnecessary spaces or newlines.
+PyDense is Python with whitespace removed. Keep every keyword, operator, literal, import, decorator, comprehension, pattern and f-string exactly as in Python. Only five things change:
 
-## 1. Core Syntax Mapping (Python -> PyDense)
-- **Scope & Delimiters**: No indentation. Wrap all blocks in `{...}`. Separate statements in a block with `;`. Omit trailing `;` before `}`.
-- **Classes & Methods**:
-  - `class A(B):` -> `@c A(B){...}`
-  - `def __init__(self, a, b=1):` -> `@i(a,b=1){...}` (`self` is implicit in all `@c` methods)
-  - `def fn(a, b):` -> `@f fn(a,b){...}` | `async def` -> `@af` | `@staticmethod` -> `@sf`
-  - `self.x` -> `.x` | Positional arg shorthand: `$0`, `$1`, `$2` map to the function's 1st, 2nd, 3rd parameters.
-  - `lambda a, b: a + b` -> `\a,b:a+b`
-  - `return x` -> `^x` | `yield x` -> `^>x` | `break` -> `^!` | `continue` -> `^~` | `raise e` -> `^@e`
-- **Control Flow & Logic**:
-  - `if c: ... elif c2: ... else: ...` -> `?c{...}:?c2{...}:{...}`
-  - `x if c else y` (ternary) -> `c??x:y`
-  - `for x in it:` -> `~x:it{...}`
-  - `while c:` -> `~?c{...}`
-  - `try: ... except E as e: ... finally: ...` -> `!{...}!E:e{...}!*{...}`
-  - `with expr as v:` -> `@w expr:v{...}`
-  - Logical ops: `and` -> `&&` | `or` -> `||` | `not x` -> `!x` | `in` -> `@in` | `is` -> `@is`
-- **Comprehensions**:
-  - `[f(x) for x in it if c]` -> `[f(x)~x:it?c]`
-  - `{k:v for k,v in it if c}` -> `{k:v~k,v:it?c}`
-- **Imports**:
-  - `import pkg as p` -> `>pkg=p` | `from pkg import a, b` -> `>pkg:a,b`
+1. **Blocks** are `{...}`, one statement per line (or `;`); after `}` only `elif`/`else`/`except`/`finally`; empty body `{}`.
+   `if c{a}elif d{b}else{e}` `for x in y{}` `while c{}` `try{}except E as e{}finally{}` `with a as b{}` `def f(x)->T{}` `class A(B){}` `match x{case p{}}`
+2. **No optional spaces**: `x=1` `f(a,b)` `{k:v}` `x:int=5`. One space only between two words (`return x`, `a in b`).
+3. **`.x` means `self.x`**, and methods omit the receiver: `def update(value){.count+=1}`. `@classmethod def make(x)` gets `cls`; `@staticmethod` is untouched. Explicit `self`/`cls` is fine (`def __new__(cls,*a)` stays). First parameter not a receiver, or none: `def!f(this,x){}`.
+4. **Ternary** `c?a:b` = `a if c else b` (Python form accepted). Parenthesize it in a slice bound, dict key or f-string field: `f'{(c?a:b)}'`.
+5. **Floats** shortest: `1.` `.5` `0.` (`1.0` accepted).
 
-## 2. Pre-Bound Macros (Auto-Imported)
-- **Constants**: `#T`=`True`, `#F`=`False`, `#N`=`None`
-- **Libraries**: `#np`=`numpy`, `#pd`=`pandas`, `#sp`=`scipy`, `#os`=`os`, `#sys`=`sys`, `#js`=`json`, `#re`=`re`, `#m`=`math`, `#dt`=`datetime`, `#pl`=`pathlib.Path`, `#as`=`asyncio`
-- **Builtins**: `%p`=`print`, `%l`=`len`, `%r`=`range`, `%e`=`enumerate`, `%z`=`zip`, `%s`=`sum`, `%m`=`map`, `%f`=`filter`, `%d`=`dict`, `%li`=`list`, `%st`=`set`, `%t`=`type`, `%i`=`isinstance`, `%a`=`abs`, `%mn`=`min`, `%mx`=`max`, `%rd`=`round`, `%o`=`open`
+Traps: decorators and `def` on one line (`@a@b def f(){`); a decorator that is not a `name.attr(args)` chain is `@(expr)`. Never split a call chain across lines without parentheses. Balance every `{`.
 
-## 3. Rosetta Stone Examples
+## Agent workflow (MCP server `pydense-mcp`)
 
-**Ex 1: Class, Init, Pos-Args & Numpy**
-Python:
-```python
-import numpy as np
-class EWMA:
-    def __init__(self, span: int = 20):
-        self.alpha = 2.0 / (span + 1.0)
-        self.state = None
-    def update(self, val: float) -> float:
-        if self.state is None:
-            self.state = val
-        else:
-            self.state = self.alpha * val + (1.0 - self.alpha) * self.state
-        return self.state
-```
-PyDense:
-```python
-@c EWMA{@i(s=20){.a=2.0/($0+1.0);.st=#N}@f update(v){?.st@is#N{.st=$0}:{.st=.a*$0+(1.0-.a)*.st};^.st}}
-```
-Ex 2: Comprehensions, Error Handling & File I/O
-Python:
-```python
-import json
-from pathlib import Path
-def load_valid(path_str, min_score=0.5):
-    try:
-        with open(Path(path_str)) as f:
-            data = json.load(f)
-        return {k: v for k, v in data.items() if v >= min_score and v is not None}
-    except Exception as e:
-        print(f"Err: {e}")
-        return {}
-```
-PyDense:
-```python
-@f load_valid(p,ms=0.5){!{@w %o(#pl($0)):f{d=#js.load(f)};^{k:v~k,v:d.items()?v>=$1&&v!@is#N}}!Exception:e{%p(f"Err: {e}");^{}}}
-```
+Models do not emit compact code unprompted: the instruction must be explicit, e.g. "write PyDense (.dpy) in tool calls".
+- `check_dpy(dpy_code)` before writing; fix every diagnostic (line:col + hint), then retry.
+- `write_dpy_file(file_path, dpy_code, output_format="py")`: you emit dense text, disk gets clean Python to commit. It refuses to drop every docstring of an existing .py unless `allow_docstring_loss=true`.
+- `read_file_as_dpy(file_path, mode="full")` instead of a plain read for large .py modules. `nodoc`/`stripped` are cheaper read-only views: never write one back whole (its docstrings are gone).
+- `execute_dpy(dpy_code, session_id)`: stateful REPL check; the last expression is returned like Jupyter.
+- `transpile_dpy(code, direction)` converts either way; `get_dpy_cheatsheet()` reprints this sheet.
+- Without MCP: `pydense check f.dpy`, `pydense decode f.dpy -o f.py`, `pydense encode f.py --mode nodoc`.

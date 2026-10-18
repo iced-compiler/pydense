@@ -1285,11 +1285,11 @@ def run_verification_suite() -> None:
     print("=" * 74)
     pyd_dec_types = (
         "@f scale_ret(factor:float){@f dec(fn){@f wrap(*a,**kw){^$0(*a,**kw)*factor};^wrap};^dec};"
-        "@#dc(frozen=#T)@c Quote{sym:str;bid:float;ask:float;tags:tuple[str,...]=()};"
-        "@[scale_ret(10000.0)]@f mid_bps(q:Quote,offset:float=0.0)->float{"
-        "m=($0.bid+$0.ask)/2.0;^(($0.ask-$0.bid)/m)+$1};"
-        "q=Quote('BTCUSDT',60000.0,60030.0,('perp','tier1'));"
-        "bps=mid_bps(q)"
+        "@#dc(frozen=#T)@c Box{name:str;width:float;height:float;tags:tuple[str,...]=()};"
+        "@[scale_ret(10000.0)]@f elongation(b:Box,offset:float=0.0)->float{"
+        "m=($0.width+$0.height)/2.0;^(($0.height-$0.width)/m)+$1};"
+        "q=Box('panel',60000.0,60030.0,('wide','main'));"
+        "bps=elongation(q)"
     )
     print(f"Input .pyd ({len(pyd_dec_types)} chars):\n  {pyd_dec_types}\n")
     compiled_py = compiler.compile_to_source(pyd_dec_types)
@@ -1298,7 +1298,7 @@ def run_verification_suite() -> None:
         print(f"  {line}")
 
     ns = runner.execute(pyd_dec_types)
-    print(f"\nExecution Output -> Quote={ns['q']}, mid_bps={ns['bps']:.4f} bps")
+    print(f"\nExecution Output -> Box={ns['q']}, elongation={ns['bps']:.4f}")
     assert abs(ns["bps"] - 4.99875) < 1e-4
 
     print("\n" + "=" * 74)

@@ -173,12 +173,12 @@ def test_boolean_identity_membership_and_bitwise_ops() -> None:
 def test_stacked_and_bracketed_decorators_with_dataclass() -> None:
     pyd = (
         "@f add_tag(tag:str){@f dec(fn){@f wrap(*a,**kw){^tag+':'+$0(*a,**kw)};^wrap};^dec};"
-        "@#dc(frozen=#T)@c Order{sym:str;qty:int=1};"
-        "@[add_tag('OUTER'),add_tag('INNER')]@f fmt(o:Order)->str{^f'{$0.sym}={$0.qty}'};"
-        "ord_obj=Order('ETH',5);res=fmt(ord_obj)"
+        "@#dc(frozen=#T)@c Item{name:str;qty:int=1};"
+        "@[add_tag('OUTER'),add_tag('INNER')]@f fmt(o:Item)->str{^f'{$0.name}={$0.qty}'};"
+        "item=Item('pen',5);res=fmt(item)"
     )
     ns = PyDenseRunner().execute(pyd)
-    assert ns["res"] == "OUTER:INNER:ETH=5"
+    assert ns["res"] == "OUTER:INNER:pen=5"
 
 
 def test_variadic_and_literal_unpacking() -> None:

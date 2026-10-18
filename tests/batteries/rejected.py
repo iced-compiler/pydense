@@ -1,0 +1,47 @@
+"""Rejected-input battery (SPEC §17.7): legacy SX / KM / v0.2 sigils and macros.
+
+Each item is ``(name, dpy_text, expected_error_code)``; every one must raise ``PyDenseSyntaxError``
+with that code (E008 for all legacy sigils, per the API contract).
+"""
+
+SNIPPETS = [
+    ("sx_if_sigil", "?x{a()}", "E008"),
+    ("sx_if_sigil_after_stmt", "x=1\n?c{a}", "E008"),
+    ("sx_for_sigil", "~x:y{f(x)}", "E008"),
+    ("sx_for_sigil_tuple_target", "~i,v:enumerate(xs){f(i)}", "E008"),
+    ("sx_return_sigil", "^x", "E008"),
+    ("sx_return_sigil_in_block", "def f(){^x}", "E008"),
+    ("sx_return_sigil_bare", "def f(){^}", "E008"),
+    ("sx_def_sigil", "@f f(){}", "E008"),
+    ("sx_def_sigil_with_params", "@f update(value){.count+=1}", "E008"),
+    ("sx_class_sigil", "@c A{}", "E008"),
+    ("sx_class_sigil_bases", "@c A(B){}", "E008"),
+    ("sx_init_macro", "@i(x){.x=x}", "E008"),
+    ("sx_init_macro_in_class", "class A{@i(x){.x=x}}", "E008"),
+    ("sx_except_sigil", "try{a()}!E:e{b()}", "E008"),
+    ("sx_except_sigil_no_name", "try{a()}!E{b()}", "E008"),
+    ("sx_except_sigil_bare", "try{a()}!{b()}", "E008"),
+    ("sx_true_macro", "x=#T", "E008"),
+    ("sx_none_macro_return", "def f(){return #N}", "E008"),
+    ("sx_print_macro", "%p(x)", "E008"),
+    ("sx_len_macro", "x=%l(xs)", "E008"),
+    ("sx_positional_macro", "x=$0", "E008"),
+    ("sx_positional_macro_call", "f($0,$1)", "E008"),
+    ("backslash_lambda", "f=\\x:x", "E008"),
+    ("backslash_lambda_noarg", "f=\\:0", "E008"),
+    ("backslash_lambda_in_call", "xs.sort(key=\\t:t[1])", "E008"),
+    ("double_question_ternary", "x=c??a:b", "E008"),
+    ("double_question_ternary_nested", "x=c??a:d??b:e", "E008"),
+    ("import_equals_alias", "import a=b", "E008"),
+    ("import_equals_alias_dotted", "import numpy=np", "E008"),
+    ("from_colon_import", "from m:a", "E008"),
+    ("from_colon_import_multi", "from pathlib:Path,PurePath", "E008"),
+    ("c_and", "if a&&b{}", "E008"),
+    ("c_and_expr", "x=a&&b", "E008"),
+    ("c_or", "x=a||b", "E008"),
+    ("c_or_in_header", "while a||b{}", "E008"),
+    ("brace_colon_else", "if c{a}:{b}", "E008"),
+    ("brace_colon_else_chain", "if c{a}:if d{b}:{c}", "E008"),
+    ("brace_colon_else_for", "for x in y{a}:{b}", "E008"),
+    ("brace_colon_else_try", "try{a}:{b}", "E008"),
+]

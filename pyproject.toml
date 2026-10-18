@@ -1,52 +1,94 @@
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "pydense"
-version = "0.2.0"
-description = "Bijective, zero-whitespace Python AST compression language (.pyd) and MCP server for AI coding agents."
+version = "1.0.0"
+description = "PyDense (.dpy): a whitespace-free, brace-blocked, AST-bijective surface syntax for Python, with CLI and MCP server for coding agents."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "PyDense Contributors" }
 ]
-keywords = ["ai", "llm", "mcp", "compiler", "ast", "token-compression", "python", "agents"]
+keywords = ["ai", "llm", "mcp", "ast", "token-compression", "python", "agents", "transpiler"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Compilers",
+    "Topic :: Software Development :: Code Generators",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = []
 
 [project.optional-dependencies]
 mcp = [
-    "mcp>=1.2.0",
+    "mcp>=1.2",
 ]
 bench = [
-    "tiktoken>=0.7.0",
+    "tiktoken>=0.7",
+    "python-minifier>=2.9",
 ]
 dev = [
-    "mcp>=1.2.0",
-    "tiktoken>=0.7.0",
-    "pytest>=8.0.0",
-    "ruff>=0.6.0",
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "hypothesis>=6.100",
+    "hypothesmith>=0.3",
+    "mcp>=1.2",
+    "tiktoken>=0.7",
+    "python-minifier>=2.9",
 ]
 
 [project.scripts]
-pydense = "pydense_cli:main"
-pydense-mcp = "mcp_server:main"
+pydense = "pydense.cli:main"
+pydense-mcp = "pydense.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/iced-compiler/pydense"
+Documentation = "https://github.com/iced-compiler/pydense/blob/main/docs/SPEC.md"
+Changelog = "https://github.com/iced-compiler/pydense/blob/main/CHANGELOG.md"
+Issues = "https://github.com/iced-compiler/pydense/issues"
 
 [tool.setuptools]
-py-modules = ["pydense", "mcp_server", "pydense_cli"]
+packages = ["pydense"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+extend-exclude = ["legacy"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501", "B011", "B018"]
+# BENCHMARK_WORKLOADS holds README source verbatim; two of its lines exceed 100 columns.
+"benchmarks/token_compression.py" = ["E501"]
+# Round-trip fixtures: Python source as data, not code to lint.
+"tests/batteries/*" = ["E", "F", "W", "I", "UP", "B"]
+"tests/samples/*" = ["E", "F", "W", "I", "UP", "B"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pydense"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+xfail_strict = true
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["pydense"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
