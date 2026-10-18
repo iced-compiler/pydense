@@ -1,0 +1,299 @@
+{
+ "meta": {
+  "pydense": "1.0.0",
+  "python": "3.13.11",
+  "label": "7 samples (SPEC section 12.1)",
+  "minifier": true,
+  "wall_seconds": 0.14918241699342616
+ },
+ "samples": [
+  {
+   "name": "1. Streaming statistics tracker",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 221,
+     "py_nodoc": 206,
+     "minifier": 171,
+     "full": 148,
+     "nodoc": 134,
+     "stripped": 116
+    },
+    "cl100k_base": {
+     "py_doc": 220,
+     "py_nodoc": 205,
+     "minifier": 170,
+     "full": 147,
+     "nodoc": 133,
+     "stripped": 116
+    }
+   },
+   "encode_ms": {
+    "full": 0.1906670004245825,
+    "nodoc": 0.1634579966776073,
+    "stripped": 0.15883299784036353
+   },
+   "parse_ms": {
+    "full": 0.5683749986928888,
+    "nodoc": 0.5542500002775341,
+    "stripped": 0.48291699931723997
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  },
+  {
+   "name": "2. Smoothed inverse-variance weights",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 210,
+     "py_nodoc": 191,
+     "minifier": 176,
+     "full": 175,
+     "nodoc": 157,
+     "stripped": 148
+    },
+    "cl100k_base": {
+     "py_doc": 206,
+     "py_nodoc": 187,
+     "minifier": 173,
+     "full": 173,
+     "nodoc": 155,
+     "stripped": 147
+    }
+   },
+   "encode_ms": {
+    "full": 0.20379099441925064,
+    "nodoc": 0.18350000027567148,
+    "stripped": 0.18024999735644087
+   },
+   "parse_ms": {
+    "full": 0.5724160000681877,
+    "nodoc": 0.5589159991359338,
+    "stripped": 0.529041004483588
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  },
+  {
+   "name": "3. Retry plan with exponential backoff",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 167,
+     "py_nodoc": 167,
+     "minifier": 143,
+     "full": 141,
+     "nodoc": 141,
+     "stripped": 127
+    },
+    "cl100k_base": {
+     "py_doc": 167,
+     "py_nodoc": 167,
+     "minifier": 142,
+     "full": 140,
+     "nodoc": 140,
+     "stripped": 126
+    }
+   },
+   "encode_ms": {
+    "full": 0.15029100177343935,
+    "nodoc": 0.15454200183739886,
+    "stripped": 0.14054100029170513
+   },
+   "parse_ms": {
+    "full": 0.49337500240653753,
+    "nodoc": 0.4914169985568151,
+    "stripped": 0.44366600195644423
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  },
+  {
+   "name": "4. Async manifest loader with error recovery",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 145,
+     "py_nodoc": 145,
+     "minifier": 128,
+     "full": 122,
+     "nodoc": 122,
+     "stripped": 107
+    },
+    "cl100k_base": {
+     "py_doc": 144,
+     "py_nodoc": 144,
+     "minifier": 127,
+     "full": 120,
+     "nodoc": 120,
+     "stripped": 105
+    }
+   },
+   "encode_ms": {
+    "full": 0.14991699572419748,
+    "nodoc": 0.1438330000382848,
+    "stripped": 0.13787499483441934
+   },
+   "parse_ms": {
+    "full": 0.4952079980284907,
+    "nodoc": 0.49858299462357536,
+    "stripped": 0.42645800567697734
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  },
+  {
+   "name": "5. Decorator factory and argument unpacking",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 169,
+     "py_nodoc": 169,
+     "minifier": 143,
+     "full": 139,
+     "nodoc": 139,
+     "stripped": 124
+    },
+    "cl100k_base": {
+     "py_doc": 165,
+     "py_nodoc": 165,
+     "minifier": 138,
+     "full": 134,
+     "nodoc": 134,
+     "stripped": 121
+    }
+   },
+   "encode_ms": {
+    "full": 0.1637919995118864,
+    "nodoc": 0.16266600141534582,
+    "stripped": 0.152209002408199
+   },
+   "parse_ms": {
+    "full": 0.498500005051028,
+    "nodoc": 0.49195899919141084,
+    "stripped": 0.4355000055511482
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  },
+  {
+   "name": "6. textwrap.TextWrapper._wrap_chunks",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 649,
+     "py_nodoc": 496,
+     "minifier": 597,
+     "full": 555,
+     "nodoc": 403,
+     "stripped": 403
+    },
+    "cl100k_base": {
+     "py_doc": 641,
+     "py_nodoc": 489,
+     "minifier": 586,
+     "full": 544,
+     "nodoc": 393,
+     "stripped": 393
+    }
+   },
+   "encode_ms": {
+    "full": 0.5625840058200993,
+    "nodoc": 0.5191669988562353,
+    "stripped": 0.5144160022609867
+   },
+   "parse_ms": {
+    "full": 1.6785420011729002,
+    "nodoc": 1.5983330013114028,
+    "stripped": 1.5962920006131753
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  },
+  {
+   "name": "7. json.encoder py_encode_basestring_ascii + JSONEncoder.default",
+   "tokens": {
+    "o200k_base": {
+     "py_doc": 304,
+     "py_nodoc": 176,
+     "minifier": 295,
+     "full": 279,
+     "nodoc": 153,
+     "stripped": 153
+    },
+    "cl100k_base": {
+     "py_doc": 296,
+     "py_nodoc": 173,
+     "minifier": 285,
+     "full": 271,
+     "nodoc": 150,
+     "stripped": 150
+    }
+   },
+   "encode_ms": {
+    "full": 0.19012499978998676,
+    "nodoc": 0.15316600183723494,
+    "stripped": 0.15429100312758237
+   },
+   "parse_ms": {
+    "full": 0.5394580002757721,
+    "nodoc": 0.46462500176858157,
+    "stripped": 0.4639999970095232
+   },
+   "ast_ok": {
+    "full": true,
+    "nodoc": true,
+    "stripped": true
+   }
+  }
+ ],
+ "total": {
+  "name": "TOTAL",
+  "tokens": {
+   "o200k_base": {
+    "py_doc": 1865,
+    "py_nodoc": 1550,
+    "minifier": 1653,
+    "full": 1559,
+    "nodoc": 1249,
+    "stripped": 1178
+   },
+   "cl100k_base": {
+    "py_doc": 1839,
+    "py_nodoc": 1530,
+    "minifier": 1621,
+    "full": 1529,
+    "nodoc": 1225,
+    "stripped": 1158
+   }
+  },
+  "encode_ms": {
+   "full": 1.6111669974634424,
+   "nodoc": 1.4803320009377785,
+   "stripped": 1.438414998119697
+  },
+  "parse_ms": {
+   "full": 4.845874005695805,
+   "nodoc": 4.658082994865254,
+   "stripped": 4.377874014608096
+  },
+  "ast_ok": {
+   "full": true,
+   "nodoc": true,
+   "stripped": true
+  }
+ }
+}
